@@ -8,15 +8,16 @@
 </head>
 
 <body>
+	<h2>Wake up time</h2>
 	<div id="wake-up-chart"></div>	
 </body>
 
 <script>
 
 	// Set the dimensions and margins of the chart.
-	const margin = {top: 10, right: 30, bottom: 30, left: 60},
-	    width = 460 - margin.left - margin.right,
-	    height = 400 - margin.top - margin.bottom;
+	const margin = {top: 10, right: 30, bottom: 30, left: 60};
+	const width = 460 - margin.left - margin.right;
+	const height = 400 - margin.top - margin.bottom;
 
 	// Append the svg object to the wake-up-chart element.
 	const svg = d3.select('#wake-up-chart')
@@ -36,6 +37,7 @@
 		.call(d3.axisBottom(dateAxis));
 
 	const parseTime = d3.timeParse('%H:%M');
+
 	// Add Y axis.
 	const wakeUpTimeAxis = d3.scaleTime()
 	    .domain([parseTime('05:00'), parseTime('11:00')])
@@ -50,15 +52,12 @@
 			return;
 		}
 		const cards = JSON.parse(xhr.responseText);
-		const transformedCards = [];
 		// Reverse cards since we want to see most recent at the top.
-		for (const card of cards.reverse().slice(0, 30)) {
-			const date = new Date(parseInt(card.id.substring(0, 8), 16) * 1000);
-			transformedCards.push({
-				date: date,
-				value: parseTime(card.name),
-			});
-		}
+		const transformedCards = cards.reverse().slice(0, 30).map(card => ({
+			// Card creation date is stored as part of the card id.
+			date: new Date(parseInt(card.id.substring(0, 8), 16) * 1000),
+			wakeUpTime: parseTime(card.name),
+		}));
 
 		// Add dots
 		svg.append('g')
@@ -67,7 +66,7 @@
 			.enter()
 			.append('circle')
 				.attr('cx', function (d) { return dateAxis(d.date); } )
-				.attr('cy', function (d) { return wakeUpTimeAxis(d.value); } )
+				.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); } )
 				.attr('r', 5)
 				.style('fill', '#69b3a2');
 
