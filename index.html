@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>charts</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0">
+	<script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+	<div id="wake-up-chart"></div>	
+</body>
+
+<script>
+
+	// Set the dimensions and margins of the chart.
+	const margin = {top: 10, right: 30, bottom: 30, left: 60},
+	    width = 460 - margin.left - margin.right,
+	    height = 400 - margin.top - margin.bottom;
+
+	// Append the svg object to the wake-up-chart element.
+	const svg = d3.select('#wake-up-chart')
+	.append('svg')
+		.attr('width', width + margin.left + margin.right)
+		.attr('height', height + margin.top + margin.bottom)
+	.append('g')
+		.attr('transform',
+		      'translate(' + margin.left + ',' + margin.top + ')');
+
+    // Add X axis.
+	const dateAxis = d3.scaleTime()
+		.domain([new Date(2019, 5, 1), new Date(2019, 7, 1)])
+		.range([0, 700]);
+	svg.append('g')
+		.attr('transform', 'translate(0,' + height + ')')
+		.call(d3.axisBottom(dateAxis));
+
+	const parseTime = d3.timeParse('%H:%M');
+	// Add Y axis.
+	const wakeUpTimeAxis = d3.scaleTime()
+	    .domain([parseTime('05:00'), parseTime('11:00')])
+	    .range([height, 0]);
+	svg.append('g')
+		.call(d3.axisLeft(wakeUpTimeAxis));
+
+	const xhr = new XMLHttpRequest();
+	xhr.open('GET', 'https://trello.com/1/lists/5cfd62ede5123b86dff74e90/cards?fields=name');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState !== 4 || xhr.status !== 200) {
+			return;
+		}
+		const cards = JSON.parse(xhr.responseText);
+		const transformedCards = [];
+		// Reverse cards since we want to see most recent at the top.
+		for (const card of cards.reverse().slice(0, 30)) {
+			const date = new Date(parseInt(card.id.substring(0, 8), 16) * 1000);
+			transformedCards.push({
+				date: date,
+				value: parseTime(card.name),
+			});
+		}
+
+		// Add dots
+		svg.append('g')
+			.selectAll('dot')
+			.data(transformedCards)
+			.enter()
+			.append('circle')
+				.attr('cx', function (d) { return dateAxis(d.date); } )
+				.attr('cy', function (d) { return wakeUpTimeAxis(d.value); } )
+				.attr('r', 5)
+				.style('fill', '#69b3a2');
+
+	};
+	xhr.send();
+</script>
+
+</html>
