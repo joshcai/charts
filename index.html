@@ -16,7 +16,7 @@
 
 	// Set the dimensions and margins of the chart.
 	const margin = {top: 10, right: 30, bottom: 30, left: 60};
-	const width = 460 - margin.left - margin.right;
+	const width = 1000 - margin.left - margin.right;
 	const height = 400 - margin.top - margin.bottom;
 
 	// Append the svg object to the wake-up-chart element.
@@ -30,8 +30,8 @@
 
     // Add X axis.
 	const dateAxis = d3.scaleTime()
-		.domain([new Date(2019, 5, 1), new Date(2019, 7, 1)])
-		.range([0, 700]);
+		.domain([new Date(2019, 5, 8), new Date(2019, 9, 1)])
+		.range([0, 1400]);
 	svg.append('g')
 		.attr('transform', 'translate(0,' + height + ')')
 		.call(d3.axisBottom(dateAxis));
