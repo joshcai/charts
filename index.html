@@ -53,7 +53,7 @@
 		}
 		const cards = JSON.parse(xhr.responseText);
 		// Reverse cards since we want to see most recent at the top.
-		const transformedCards = cards.reverse().slice(0, 30).map(card => ({
+		const transformedCards = cards.reverse().map(card => ({
 			// Card creation date is stored as part of the card id.
 			date: new Date(parseInt(card.id.substring(0, 8), 16) * 1000),
 			wakeUpTime: parseTime(card.name),
