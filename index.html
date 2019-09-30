@@ -18,6 +18,13 @@
 			font-size: 40px;
 			color: #14BDEB;
 		}
+		#buttons {
+			text-align: center;
+		}
+		.button {
+			margin-left: 2px;
+			margin-right: 2px;
+		}
 		.grid {
 			color: #F1E0C5;
 			opacity: 0.3;
@@ -31,6 +38,7 @@
 <body>
 	<h2 id="title">Wake up time</h2>
 	<div id="wake-up-chart"></div>	
+	<div id="buttons"></div>
 </body>
 
 <script>
@@ -50,6 +58,22 @@
 		.attr('transform',
 			'translate(' + margin.left + ',' + margin.top + ')');
 
+	function getXAxis(transformedCards) {
+		// Pad the min / max of X axis with 1 day to avoid points falling on the axis / end grid line.
+		const minDate = new Date(transformedCards[transformedCards.length-1].date);
+		minDate.setDate(minDate.getDate() - 1);
+		const maxDate = new Date(transformedCards[0].date);
+		maxDate.setDate(maxDate.getDate() + 1);
+
+		return d3.scaleTime()
+			.domain([minDate, maxDate])
+			.range([0, 800]);
+	}
+
+	function axisBottom(axis) {
+		return d3.axisBottom(axis).tickSizeOuter(0).tickFormat(d3.timeFormat('%m/%d'));
+	}
+
 	const xhr = new XMLHttpRequest();
 	xhr.open('GET', 'https://trello.com/1/lists/5cfd62ede5123b86dff74e90/cards?fields=name');
 	xhr.onreadystatechange = function() {
@@ -59,26 +83,19 @@
 		const cards = JSON.parse(xhr.responseText);
 		const parseTime = d3.timeParse('%H:%M');
 		// Reverse cards since we want to see most recent.
-		const transformedCards = cards.reverse().slice(0, 90).map(card => ({
+		const parsedCards = cards.reverse().map(card => ({
 			// Card creation date is stored as part of the card id.
 			date: new Date(parseInt(card.id.substring(0, 8), 16) * 1000),
 			wakeUpTime: parseTime(card.name),
-		}));
-
-		// Pad the min / max of X axis with 1 day to avoid points falling on the axis / end grid line.
-		const minDate = new Date(transformedCards[transformedCards.length-1].date);
-		minDate.setDate(minDate.getDate() - 1);
-		const maxDate = new Date(transformedCards[0].date);
-		maxDate.setDate(maxDate.getDate() + 1);
+		}));	
+		const transformedCards = parsedCards.slice(0, 90);
 
 		// Add X axis.
-		const dateAxis = d3.scaleTime()
-			.domain([minDate, maxDate])
-			.range([0, 800]);
+		const dateAxis = getXAxis(transformedCards);
 		svg.append('g')
 			.attr('transform', 'translate(0,' + height + ')')
-			.attr('class', 'axis')
-			.call(d3.axisBottom(dateAxis).tickSizeOuter(0).tickFormat(d3.timeFormat('%m/%d')));
+			.attr('class', 'axis x-axis')
+			.call(axisBottom(dateAxis));
 
 		// Add Y axis.
 		const wakeUpTimeAxis = d3.scaleTime()
@@ -101,7 +118,8 @@
 
 		// Add dots.
 		svg.append('g')
-			.selectAll('dot')
+			.attr('class', 'circles')
+			.selectAll('circle')
 			.data(transformedCards)
 			.enter()
 			.append('circle')
@@ -109,6 +127,44 @@
 				.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); } )
 				.attr('r', 4)
 				.attr('class', 'dot');
+
+		function updateData(transformedCards) {
+			const dateAxis = getXAxis(transformedCards);
+			d3.transition(svg).select('.x-axis')
+				.transition()
+				.duration(500)
+					.call(axisBottom(dateAxis));	
+
+			const circles = svg.select('.circles').selectAll('circle')
+				.data(transformedCards);
+			circles.exit().remove();
+			circles.enter().append('circle')
+				.attr('r', 4)
+				.attr('cx', function (d) { return dateAxis(d.date); } )
+				.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); })
+				.attr('class', 'dot');
+
+			// Update all circles to new positions.
+			circles.transition()
+				.duration(600)
+					.attr('cx', function (d) { return dateAxis(d.date); } )
+					.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); })
+					.attr('r', 4)
+					.attr('class', 'dot');
+		}
+
+		function createButton(text, size) {
+			d3.select('#buttons').append('button')
+				.attr('class', 'button')
+				.text(text)
+				.on('click',function(){
+					updateData(parsedCards.slice(0, size));
+				});			
+		}
+		
+		createButton('all', parsedCards.length);
+		createButton('last 90 days', 90);
+		createButton('last 30 days', 30);
 	};
 	xhr.send();
 </script>
