@@ -74,6 +74,10 @@
 		return d3.axisBottom(axis).tickSizeOuter(0).tickFormat(d3.timeFormat('%m/%d'));
 	}
 
+	function xGridlines(dateAxis, height) {
+		return d3.axisBottom(dateAxis).ticks(3).tickSize(-height).tickFormat('');
+	}
+
 	const xhr = new XMLHttpRequest();
 	xhr.open('GET', 'https://trello.com/1/lists/5cfd62ede5123b86dff74e90/cards?fields=name');
 	xhr.onreadystatechange = function() {
@@ -107,61 +111,64 @@
 
 		// Add the X gridlines.
 		svg.append('g')			
-			.attr('class', 'grid')
+			.attr('class', 'grid x-gridlines')
 			.attr('transform', 'translate(0,' + height + ')')
-			.call(d3.axisBottom(dateAxis).ticks(3).tickSize(-height).tickFormat(''));
+			.call(xGridlines(dateAxis, height));
 
 		// Add the Y gridlines.
 		svg.append('g')			
 			.attr('class', 'grid')
 			.call(d3.axisLeft(wakeUpTimeAxis).ticks(4).tickSize(-width).tickFormat(''));
 
-		// Add dots.
+		// Add section for dots.
 		svg.append('g')
-			.attr('class', 'circles')
-			.selectAll('circle')
-			.data(transformedCards)
-			.enter()
-			.append('circle')
-				.attr('cx', function (d) { return dateAxis(d.date); } )
-				.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); } )
-				.attr('r', 4)
-				.attr('class', 'dot');
+			.attr('class', 'circles');
 
-		function updateData(transformedCards) {
+		function updateData(transformedCards, speed) {
 			const dateAxis = getXAxis(transformedCards);
 			d3.transition(svg).select('.x-axis')
 				.transition()
-				.duration(500)
+				.duration(400)
 					.call(axisBottom(dateAxis));	
+
+			d3.transition(svg).select('.x-gridlines')
+				.transition()
+				.duration(400)
+					.call(xGridlines(dateAxis, height));	
 
 			const circles = svg.select('.circles').selectAll('circle')
 				.data(transformedCards);
-			circles.exit().remove();
+			circles.exit()
+				.transition()
+				.duration(speed)
+					.attr('cx', 0)
+					.attr('opacity', 0)
+					.remove();
 			circles.enter().append('circle')
 				.attr('r', 4)
-				.attr('cx', function (d) { return dateAxis(d.date); } )
+				.attr('cx', 0)
 				.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); })
-				.attr('class', 'dot');
-
-			// Update all circles to new positions.
-			circles.transition()
-				.duration(600)
+				.attr('class', 'dot')
+				.attr('opacity', 0)
+				// Merge to apply transition to all new and current nodes.
+				.merge(circles)
+				.transition()
+				.duration(speed)
 					.attr('cx', function (d) { return dateAxis(d.date); } )
-					.attr('cy', function (d) { return wakeUpTimeAxis(d.wakeUpTime); })
-					.attr('r', 4)
-					.attr('class', 'dot');
+					.attr('opacity', 1);
 		}
+
+		updateData(transformedCards, 400);
 
 		function createButton(text, size) {
 			d3.select('#buttons').append('button')
 				.attr('class', 'button')
 				.text(text)
 				.on('click',function(){
-					updateData(parsedCards.slice(0, size));
+					updateData(parsedCards.slice(0, size), 600);
 				});			
 		}
-		
+
 		createButton('all', parsedCards.length);
 		createButton('last 90 days', 90);
 		createButton('last 30 days', 30);
