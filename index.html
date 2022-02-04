@@ -27,7 +27,7 @@
 			font-size: 40px;
 			color: #14BDEB;
 		}
-		#buttons {
+		#wake-up-buttons {
 			text-align: center;
 		}
 		.button {
@@ -50,7 +50,10 @@
 <body>
 	<h2 id="title">Wake up time</h2>
 	<div id="wake-up-chart"></div>	
-	<div id="buttons"></div>
+	<div id="wake-up-buttons"></div>
+
+	<h2 id="title">Weight</h2>
+	<div id="weight-chart"></div>
 </body>
 
 <script>
@@ -59,6 +62,8 @@
 	const margin = {top: 10, right: 40, bottom: 30, left: 60};
 	const height = 400 - margin.top - margin.bottom;
 	const width = 900 - margin.left - margin.right;
+
+  // WAKE UP TIME CHART
 
 	// Append the svg object to the wake-up-chart element.
 	const svg = d3.select('#wake-up-chart')
@@ -215,7 +220,7 @@
 		updateData(transformedCards, 400);
 
 		function createButton(text, size) {
-			d3.select('#buttons').append('button')
+			d3.select('#wake-up-buttons').append('button')
 				.attr('class', 'button')
 				.text(text)
 				.on('click',function(){
@@ -228,6 +233,98 @@
 		createButton('last 30 days', 30);
 	};
 	xhr.send();
+
+  // WEIGHT CHART
+
+	// Append the svg object to the wake-up-chart element.
+	const weightSvg = d3.select('#weight-chart')
+	.append('svg')
+		.attr('preserveAspectRatio', 'xMinYMin meet')
+		.attr('viewBox', '0 0 900 400')
+		.classed('svg-content', true)
+	.append('g')
+		.attr('transform',
+			'translate(' + margin.left + ',' + margin.top + ')');
+
+	const weightXhr = new XMLHttpRequest();
+	weightXhr.open('GET', 'https://trello.com/1/lists/5fc3f35862410f3a5368c5c5/cards?fields=name');
+	weightXhr.onreadystatechange = function() {
+		if (weightXhr.readyState !== 4 || weightXhr.status !== 200) {
+			return;
+		}
+		const cards = JSON.parse(weightXhr.responseText);
+		// Reverse cards since we want to see most recent.
+		const parsedCards = cards.map(card => ({
+			// Card creation date is stored as part of the card id.
+			date: new Date(parseInt(card.id.substring(0, 8), 16) * 1000),
+			weight: Number(card.name),
+		}));
+    const transformedCards = parsedCards.reverse()
+    console.log(transformedCards);
+
+		// Add X axis.
+		const dateAxis = getXAxis(transformedCards);
+		weightSvg.append('g')
+			.attr('transform', 'translate(0,' + height + ')')
+			.attr('class', 'axis x-axis')
+			.call(axisBottom(dateAxis));
+
+		// Add Y axis.
+		const weightAxis = d3.scaleLinear()
+		    .domain([140, 200])
+		    .range([height, 0]);
+		weightSvg.append('g')
+			.attr('class', 'axis')
+			.call(d3.axisLeft(weightAxis));
+
+		// Add the X gridlines.
+		weightSvg.append('g')			
+			.attr('class', 'grid x-gridlines')
+			.attr('transform', 'translate(0,' + height + ')')
+			.call(xGridlines(dateAxis, height));
+
+		// Add the Y gridlines.
+		weightSvg.append('g')			
+			.attr('class', 'grid')
+			.call(d3.axisLeft(weightAxis).ticks(4).tickSize(-width).tickFormat(''));
+
+		// Add section for dots.
+		weightSvg.append('g')
+			.attr('class', 'circles');
+
+    const speed = 400;
+    d3.transition(weightSvg).select('.x-axis')
+      .transition()
+      .duration(400)
+        .call(axisBottom(dateAxis));	
+
+    d3.transition(weightSvg).select('.x-gridlines')
+      .transition()
+      .duration(400)
+        .call(xGridlines(dateAxis, height));	
+
+    const circles = weightSvg.select('.circles').selectAll('circle')
+      .data(transformedCards);
+    circles.exit()
+      .transition()
+      .duration(speed)
+        .attr('cx', 0)
+        .attr('opacity', 0)
+        .remove();
+    circles.enter().append('circle')
+      .attr('r', 4)
+      .attr('cx', 0)
+      .attr('cy', function (d) { return weightAxis(d.weight); })
+      .attr('class', 'dot')
+      .attr('opacity', 0)
+      // Merge to apply transition to all new and current nodes.
+      .merge(circles)
+      .transition()
+      .duration(speed)
+        .attr('cx', function (d) { return dateAxis(d.date); } )
+        .attr('opacity', 1);
+	};
+	weightXhr.send();
 </script>
 
 </html>
